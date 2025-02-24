@@ -6,7 +6,8 @@ public class Collider : MonoBehaviour
     {
         POINT,
         AXIS_ALIGNED_RECTANGLE,
-        CIRCLE
+        CIRCLE,
+        RAY
     }
 
     public Type type;
