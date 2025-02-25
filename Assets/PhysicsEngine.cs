@@ -1,3 +1,4 @@
+using UnityEditor.ShaderGraph.Internal;
 using UnityEngine;
 
 public class PhysicsEngine : MonoBehaviour
@@ -74,14 +75,17 @@ public class PhysicsEngine : MonoBehaviour
             {
                 Collider b = colliders[j];
 
+                //initialise local variables for use in multiple case statements
+                Collider point, rectangle, circle, ray = null;
+
                 switch (a.type, b.type) 
                 {
-                    //POINT TO RECTANGLE (AA)
+                    //POINT TO RECTANGLE (AxisAligned)
                     case (Collider.Type.POINT, Collider.Type.AXIS_ALIGNED_RECTANGLE):
                     case (Collider.Type.AXIS_ALIGNED_RECTANGLE, Collider.Type.POINT):
 
-                        Collider point = (a.type == Collider.Type.POINT) ? a : b;
-                        Collider rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
+                        point = (a.type == Collider.Type.POINT) ? a : b;
+                        rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
 
                         float width = rectangle.transform.localScale.x;
                         float height = rectangle.transform.localScale.y;
@@ -99,37 +103,84 @@ public class PhysicsEngine : MonoBehaviour
                         if (onLHS || onRHS || onTop || onBot) continue;
 
                         HandleCollision();
-                        print("PTR: Collision");
+                        print("Point To Rect: Collision");
                         break;
 
                     //POINT TO CIRCLE
                     case (Collider.Type.POINT, Collider.Type.CIRCLE):
                     case (Collider.Type.CIRCLE, Collider.Type.POINT):
+
+                        point = (a.type == Collider.Type.POINT) ? a : b;
+                        circle = (a.type == Collider.Type.CIRCLE) ? a : b;
+
+                        float radius = circle.transform.localScale.x / 2f;
+                        float magnitudeVector = (point.transform.position - circle.transform.position).magnitude;
+                        float distanceToCircle = magnitudeVector - radius;
+
+                        if (distanceToCircle <= radius) 
+                        {
+                            HandleCollision();
+                            print("Point To Circle: Collision");
+                        }
                         break;
 
                     //CIRCLE TO CIRCLE
                     case (Collider.Type.CIRCLE, Collider.Type.CIRCLE):
+
+                        float radiusC1 = a.transform.localScale.x / 2f;
+                        float radiusC2 = b.transform.localScale.x / 2f;
+                        float distance = (a.transform.position - b.transform.position).magnitude;
+
+                        if (distance <= (radiusC1 + radiusC2)) 
+                        {
+                            HandleCollision();
+                            print("Circle To Circle: Collision");
+                        }
                         break;
 
-                    //RECTANGLE (AA) TO CIRCLE
+                    //RECTANGLE (AxisAligned) TO CIRCLE
                     case (Collider.Type.AXIS_ALIGNED_RECTANGLE, Collider.Type.CIRCLE):
                     case (Collider.Type.CIRCLE, Collider.Type.AXIS_ALIGNED_RECTANGLE):
+
+                        rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
+                        circle = (a.type == Collider.Type.CIRCLE) ? a : b;
+
+                        HandleCollision();
+                        print("Rect To Circle: Collision");
                         break;
 
-                    //RECTANGLE (AA) TO RECTANGLE (AA)
+                    //RECTANGLE (AxisAligned) TO RECTANGLE (AxisAligned)
                     case (Collider.Type.AXIS_ALIGNED_RECTANGLE, Collider.Type.AXIS_ALIGNED_RECTANGLE):
+
+                        HandleCollision();
+                        print("Rect To Rect: Collision");
                         break;
 
                     //RAY INTERSECTION
                     case (Collider.Type.RAY, Collider.Type.RAY):
+
+                        HandleCollision();
+                        print("Ray Intersection");
                         break;
 
-                    //RAY TO RECTANGLE (AA)
+                    //RAY TO RECTANGLE (AxisAligned)
                     case (Collider.Type.RAY, Collider.Type.AXIS_ALIGNED_RECTANGLE):
+
+                        ray = (a.type == Collider.Type.RAY) ? a : b;
+                        rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
+
+                        HandleCollision();
+                        print("Ray To Rectangle: Collision");
                         break;
 
                     //RAY TO CIRCLE
                     case (Collider.Type.RAY, Collider.Type.CIRCLE):
+
+                        ray = (a.type == Collider.Type.RAY) ? a : b;
+                        circle = (a.type == Collider.Type.CIRCLE) ? a : b;
+
+                        HandleCollision();
+                        print("Ray To Circle: Collision");
                         break;
 
                     //NO COLLISION DETECTED
