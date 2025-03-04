@@ -63,6 +63,8 @@ public class PhysicsEngine : MonoBehaviour
 
         Current types of collisions: point/axis-aligned rectangle
     */
+
+    //research impluse and velocity physics instead of penetration depth
     private void CheckCollisions() 
     {
         Collider[] colliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
@@ -75,113 +77,153 @@ public class PhysicsEngine : MonoBehaviour
             {
                 Collider b = colliders[j];
 
-                //initialise local variables for use in multiple case statements
-                Collider point, rectangle, circle, ray = null;
-
                 switch (a.type, b.type) 
                 {
                     //POINT TO RECTANGLE (AxisAligned)
                     case (Collider.Type.POINT, Collider.Type.AXIS_ALIGNED_RECTANGLE):
                     case (Collider.Type.AXIS_ALIGNED_RECTANGLE, Collider.Type.POINT):
+                        {
+                            Collider point = (a.type == Collider.Type.POINT) ? a : b;
+                            Collider rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
 
-                        point = (a.type == Collider.Type.POINT) ? a : b;
-                        rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
+                            float width = rectangle.transform.localScale.x;
+                            float height = rectangle.transform.localScale.y;
 
-                        float width = rectangle.transform.localScale.x;
-                        float height = rectangle.transform.localScale.y;
+                            float lhBound = rectangle.transform.localPosition.x - (width / 2f);
+                            float rhBound = rectangle.transform.localPosition.x + (width / 2f);
+                            float topBound = rectangle.transform.localPosition.y + (height / 2f);
+                            float botBound = rectangle.transform.localPosition.y - (height / 2f);
 
-                        float lhBound = rectangle.transform.localPosition.x - (width / 2f);
-                        float rhBound = rectangle.transform.localPosition.x + (width / 2f);
-                        float topBound = rectangle.transform.localPosition.y + (height / 2f);
-                        float botBound = rectangle.transform.localPosition.y - (height / 2f);
+                            bool onLHS = (point.transform.localPosition.x < lhBound);
+                            bool onRHS = (point.transform.localPosition.x > rhBound);
+                            bool onTop = (point.transform.localPosition.y > topBound);
+                            bool onBot = (point.transform.localPosition.y < botBound);
 
-                        bool onLHS = (point.transform.localPosition.x < lhBound);
-                        bool onRHS = (point.transform.localPosition.x > rhBound);
-                        bool onTop = (point.transform.localPosition.y > topBound);
-                        bool onBot = (point.transform.localPosition.y < botBound);
+                            if (onLHS || onRHS || onTop || onBot) continue;
 
-                        if (onLHS || onRHS || onTop || onBot) continue;
-
-                        HandleCollision();
-                        print("Point To Rect: Collision");
-                        break;
+                            HandleCollision();
+                            print("Point To Rect: Collision");
+                            break;
+                        }
 
                     //POINT TO CIRCLE
                     case (Collider.Type.POINT, Collider.Type.CIRCLE):
                     case (Collider.Type.CIRCLE, Collider.Type.POINT):
-
-                        point = (a.type == Collider.Type.POINT) ? a : b;
-                        circle = (a.type == Collider.Type.CIRCLE) ? a : b;
-
-                        float radius = circle.transform.localScale.x / 2f;
-                        float magnitudeVector = (point.transform.position - circle.transform.position).magnitude;
-                        float distanceToCircle = magnitudeVector - radius;
-
-                        if (distanceToCircle <= radius) 
                         {
-                            HandleCollision();
-                            print("Point To Circle: Collision");
+                            Collider point = (a.type == Collider.Type.POINT) ? a : b;
+                            Collider circle = (a.type == Collider.Type.CIRCLE) ? a : b;
+
+                            float radius = circle.transform.localScale.x / 2f;
+                            float magnitude = (point.transform.position - circle.transform.position).magnitude;
+                            float distance = magnitude - radius;
+
+                            if (distance <= radius)
+                            {
+                                HandleCollision();
+                                print("Point To Circle: Collision");
+                            }
+                            break;
                         }
-                        break;
 
                     //CIRCLE TO CIRCLE
                     case (Collider.Type.CIRCLE, Collider.Type.CIRCLE):
-
-                        float radiusC1 = a.transform.localScale.x / 2f;
-                        float radiusC2 = b.transform.localScale.x / 2f;
-                        float distance = (a.transform.position - b.transform.position).magnitude;
-
-                        if (distance <= (radiusC1 + radiusC2)) 
                         {
-                            HandleCollision();
-                            print("Circle To Circle: Collision");
+                            //radius
+                            float combinedRadius = (a.transform.localScale.x / 2f) + (b.transform.localScale.x / 2f);
+
+                            //a to b vector
+                            Vector3 AtoB = b.transform.position - a.transform.position;
+                            Vector3 AtoBNorm = AtoB.normalized;
+                            float distanceAtoB = AtoB.magnitude;
+
+                            //b to vector
+                            Vector3 BtoA = a.transform.position - b.transform.position;
+                            Vector3 BtoANorm = BtoA.normalized;
+                            float distanceBtoA = BtoA.magnitude;
+
+                            //mass
+                            float massA = a.GetComponent<PhysicsBody>().mass;
+                            float massB = b.GetComponent<PhysicsBody>().mass;
+                            float massCombined = massA + massB;
+
+                            if (distanceAtoB <= combinedRadius)
+                            {
+                                //HandleCollision(); abstract later
+                                a.transform.position += BtoANorm * (combinedRadius - distanceBtoA) * (massB / massCombined);
+                                b.transform.position += AtoBNorm * (combinedRadius - distanceAtoB) * (massA / massCombined);
+                                print("Circle To Circle: Collision");
+                            }
+                            break;
                         }
-                        break;
 
                     //RECTANGLE (AxisAligned) TO CIRCLE
                     case (Collider.Type.AXIS_ALIGNED_RECTANGLE, Collider.Type.CIRCLE):
                     case (Collider.Type.CIRCLE, Collider.Type.AXIS_ALIGNED_RECTANGLE):
+                        {
+                            Collider rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
+                            Collider circle = (a.type == Collider.Type.CIRCLE) ? a : b;
 
-                        rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
-                        circle = (a.type == Collider.Type.CIRCLE) ? a : b;
+                            float circleRadius = circle.transform.localScale.x / 2f;
+                            float rectHalfWidth = rectangle.transform.localScale.x / 2f;
+                            float rectHalfHeight = rectangle.transform.localScale.y / 2f;
+                            float clampX = Mathf.Clamp(circle.transform.position.x, 
+                                                       rectangle.transform.position.x - rectHalfWidth, 
+                                                       rectangle.transform.position.x + rectHalfWidth);
+                            float clampY = Mathf.Clamp(circle.transform.position.y,
+                                                       rectangle.transform.position.y - rectHalfHeight,
+                                                       rectangle.transform.position.y + rectHalfHeight);
 
-                        HandleCollision();
-                        print("Rect To Circle: Collision");
-                        break;
+                            Vector3 circleToClosestPoint = new Vector3(clampX, clampY) - circle.transform.position;
+                            float distance = circleToClosestPoint.magnitude;
+
+                            //research fast inverse square root for mag calc (ssquare magnitude)
+                            if(distance < circleRadius) 
+                            {
+                                HandleCollision();
+                                //calc restitution so that a rectangle can either be immovable (circles bounce on it without moving it) or
+                                //both circle and rectangle move during a collision
+                                print("Rect To Circle: Collision");
+                            }
+                            break;
+                        }
 
                     //RECTANGLE (AxisAligned) TO RECTANGLE (AxisAligned)
                     case (Collider.Type.AXIS_ALIGNED_RECTANGLE, Collider.Type.AXIS_ALIGNED_RECTANGLE):
-
-                        HandleCollision();
-                        print("Rect To Rect: Collision");
-                        break;
+                        {
+                            HandleCollision();
+                            print("Rect To Rect: Collision");
+                            break;
+                        }
 
                     //RAY INTERSECTION
                     case (Collider.Type.RAY, Collider.Type.RAY):
-
-                        HandleCollision();
-                        print("Ray Intersection");
-                        break;
+                        {
+                            HandleCollision();
+                            print("Ray Intersection");
+                            break;
+                        }
 
                     //RAY TO RECTANGLE (AxisAligned)
                     case (Collider.Type.RAY, Collider.Type.AXIS_ALIGNED_RECTANGLE):
+                        {
+                            Collider ray = (a.type == Collider.Type.RAY) ? a : b;
+                            Collider rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
 
-                        ray = (a.type == Collider.Type.RAY) ? a : b;
-                        rectangle = (a.type == Collider.Type.AXIS_ALIGNED_RECTANGLE) ? a : b;
-
-                        HandleCollision();
-                        print("Ray To Rectangle: Collision");
-                        break;
+                            HandleCollision();
+                            print("Ray To Rectangle: Collision");
+                            break;
+                        }
 
                     //RAY TO CIRCLE
                     case (Collider.Type.RAY, Collider.Type.CIRCLE):
+                        {
+                            Collider ray = (a.type == Collider.Type.RAY) ? a : b;
+                            Collider circle = (a.type == Collider.Type.CIRCLE) ? a : b;
 
-                        ray = (a.type == Collider.Type.RAY) ? a : b;
-                        circle = (a.type == Collider.Type.CIRCLE) ? a : b;
-
-                        HandleCollision();
-                        print("Ray To Circle: Collision");
-                        break;
+                            HandleCollision();
+                            print("Ray To Circle: Collision");
+                            break;
+                        }
 
                     //NO COLLISION DETECTED
                     default:
