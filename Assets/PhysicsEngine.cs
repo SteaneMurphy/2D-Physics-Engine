@@ -180,6 +180,12 @@ public class PhysicsEngine : MonoBehaviour
                             if(distance < circleRadius) 
                             {
                                 HandleCollision();
+                                //explain??
+                                circle.transform.position -= circleToClosestPoint.normalized * (circleRadius - distance);
+                                float dotProduct = Vector3.Dot(circle.GetComponent<PhysicsBody>().velocity, circleToClosestPoint.normalized);
+                                Vector3 reflection = circle.GetComponent<PhysicsBody>().velocity - 2 * dotProduct * circleToClosestPoint.normalized;
+                                circle.GetComponent<PhysicsBody>().velocity = reflection;
+
                                 //calc restitution so that a rectangle can either be immovable (circles bounce on it without moving it) or
                                 //both circle and rectangle move during a collision
                                 print("Rect To Circle: Collision");
